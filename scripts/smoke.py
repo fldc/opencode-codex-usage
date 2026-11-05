@@ -5,6 +5,8 @@ from pathlib import Path
 import websockets
 ROOT=Path(__file__).resolve().parent.parent
 ACTION='se.fredrik.codexusage.usage'
+BINARY=Path(os.environ.get('CODEX_USAGE_TEST_BINARY', 'target/debug/opendeck-codex-usage'))
+if not BINARY.is_absolute(): BINARY=ROOT/BINARY
 async def main():
     with tempfile.TemporaryDirectory() as tmp:
         state=Path(tmp)/'state';log=Path(tmp)/'log';state.write_text('{}')
@@ -15,7 +17,7 @@ async def main():
         async with websockets.serve(connection,'127.0.0.1',0) as server:
             port=server.sockets[0].getsockname()[1]
             env={**os.environ,'CODEX_USAGE_CLI':str(ROOT/'tests/fake_codex.py'),'QUOTA_TEST_STATE':str(state),'QUOTA_TEST_LOG':str(log)}
-            p=await asyncio.create_subprocess_exec(str(ROOT/'target/debug/opendeck-codex-usage'),'-port',str(port),'-pluginUUID','test','-registerEvent','registerPlugin','-info','{"devices":[]}',env=env)
+            p=await asyncio.create_subprocess_exec(str(BINARY),'-port',str(port),'-pluginUUID','test','-registerEvent','registerPlugin','-info','{"devices":[]}',env=env)
             try:
                 ws=await asyncio.wait_for(connected,5)
                 assert json.loads(await ws.recv())['event']=='registerPlugin'

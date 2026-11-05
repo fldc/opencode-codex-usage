@@ -48,7 +48,15 @@ python scripts/smoke.py
 
 `--probe` exercises the same Rust provider used by the plugin, prints normalized quota windows, and exits after stopping its child. It does not print credentials or account identity. `scripts/probe.py` is a separate Python diagnostic for the protocol.
 
-The smoke test requires Python's `websockets` package (`python -m pip install websockets`, preferably in a virtual environment). It launches the real plugin with a simulated OpenDeck host and a fixture Codex process. It checks shared polling, settings changes, missing windows, stale values, account changes, sign-in recovery, disconnect/timeout recovery, and child cleanup.
+The smoke test requires Python's `websockets` package (`python -m pip install -r requirements-dev.txt`, preferably in a virtual environment). It launches the real plugin with a simulated OpenDeck host and a fixture Codex process. It checks shared polling, settings changes, missing windows, stale values, account changes, sign-in recovery, disconnect/timeout recovery, and child cleanup.
+
+## CI and releases
+
+GitHub Actions runs formatting, unit tests, Clippy, and the OpenDeck protocol smoke test on pushes to `master` and on pull requests. The smoke test uses the release binary and a fixture Codex process; CI needs no Codex login. Each successful run provides a Linux x86_64 ZIP and SHA-256 checksum under its workflow artifacts.
+
+To publish a release, update the version in `Cargo.toml` and `assets/manifest.json`, refresh `Cargo.lock`, and commit the changes. Push a matching tag such as `v0.1.0`. The workflow validates the tag and package versions, then publishes the tested ZIP and checksum to GitHub Releases with generated release notes. Tags with a prerelease suffix create prereleases. Existing releases are not overwritten by reruns.
+
+Actions are pinned to verified release commits. Dependabot checks action, Rust, and Python test dependency updates weekly.
 
 ## Attribution
 
