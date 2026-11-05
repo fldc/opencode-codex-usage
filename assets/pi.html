@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Codex Usage</title>
+<style>body{background:#20252d;color:#e7ebf0;font:14px system-ui;margin:18px}label{display:block;margin:16px 0 6px}select,button{width:100%;padding:8px;background:#343c48;color:inherit;border:1px solid #566070;border-radius:5px}p{line-height:1.5;color:#b9c1cd}input{vertical-align:middle}#status{color:#f5c451}small{display:block;margin-top:8px}</style></head>
+<body><p>Shows the subscription quota of your local Codex login. Sign in with <code>codex login</code> if needed.</p>
+<label for="bucket">Quota</label><select id="bucket"><option value="codex">Codex</option></select>
+<label for="window">Window</label><select id="window"><option value="primary">Primary</option><option value="secondary">Secondary</option></select>
+<label><input type="checkbox" id="percent" checked> Show percentage used</label>
+<p id="status" role="status">Connecting…</p><small id="updated"></small><p>Press the deck key to refresh. Quota is normally checked every minute.</p>
+<script>
+let socket,context,settings={bucket:'codex',window:'primary',show_percent:true},buckets={};
+const bucket=document.getElementById('bucket'),win=document.getElementById('window'),percent=document.getElementById('percent');
+function options(){
+ const ids=[...new Set([settings.bucket,...Object.keys(buckets)])];bucket.replaceChildren(...ids.map(id=>new Option(id,id)));bucket.value=settings.bucket;
+ const b=buckets[settings.bucket]||{};win.replaceChildren(...['primary','secondary'].map(id=>{const w=b[id],m=w?.windowDurationMins;const duration=m?(m%1440===0?`${m/1440} days`:m%60===0?`${m/60} hours`:`${m} minutes`):id;const o=new Option(w?duration:`${id} (unavailable)`,id);return o;}));win.value=settings.window;percent.checked=settings.show_percent;
+}
+function connectOpenActionSocket(port,uuid,event,info,action){
+ const a=JSON.parse(action);context=a.context;Object.assign(settings,a.payload.settings||{});options();
+ socket=new WebSocket(`ws://127.0.0.1:${port}`);
+ socket.onopen=()=>{socket.send(JSON.stringify({event,uuid}));socket.send(JSON.stringify({event:'sendToPlugin',action:a.action,context,payload:{request:'status'}}));};
+ socket.onmessage=e=>{const d=JSON.parse(e.data);if(d.event==='didReceiveSettings'){Object.assign(settings,d.payload.settings);options();}if(d.event==='sendToPropertyInspector'){const p=d.payload;buckets=p.buckets||{};options();document.getElementById('status').textContent=(p.stale?'Stale · ':'')+p.status;document.getElementById('updated').textContent=p.fetchedAt?'Last updated '+new Date(p.fetchedAt*1000).toLocaleString():'';}};
+ socket.onclose=()=>document.getElementById('status').textContent='Disconnected from OpenDeck';
+}
+const connectElgatoStreamDeckSocket=connectOpenActionSocket;
+function save(){settings={bucket:bucket.value,window:win.value,show_percent:percent.checked};options();if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify({event:'setSettings',context,payload:settings}));}
+[bucket,win,percent].forEach(el=>el.addEventListener('change',save));
+</script></body></html>
